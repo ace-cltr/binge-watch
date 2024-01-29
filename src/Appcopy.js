@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const tempMovieData = [
   {
@@ -50,24 +50,68 @@ const tempWatchedData = [
 const average = (arr) =>
   arr.reduce((acc, cur, i, arr) => acc + cur / arr.length, 0);
 
+const key = '52174c36'
 
 export default function App() {
-  const [movies, setMovies] = useState(tempMovieData);
-  const [watched, setWatched] = useState(tempWatchedData);
+  const [query, setQuery] = useState("");
+  const [movies, setMovies] = useState([]);
+  const [watched, setWatched] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('')
+  const tempQuery = 'interstellar'
+
+  // reder logic can't have data which have to be fetched from outside the component or else it will create a loop of re rendering the component
+  // that is why we use useEffect hook
+
+  // promises are good but don't have await so we wrap our fetch inside async function instead
+  useEffect(function () {
+    async function fetchMovies() {
+      try {
+        setIsLoading(true);
+        setError('')
+        const res = await fetch(`http://www.omdbapi.com/?apikey=${key}&s=${query}`)
+        if (!res.ok)
+          throw new Error('oops something went wrong!')
+        const data = await res.json()
+        if (data.Response === 'False')
+          throw new Error('Movie not found')
+        setMovies(data.Search)
+      }
+      catch (err) {
+        setError(err.message);
+      }
+      finally {
+        setIsLoading(false);
+      }
+    }
+
+    if(!query.length){
+      setMovies([])
+      setError('')
+      return;
+    }
+
+    fetchMovies()
+  }, [query])
+
+
   return (
     <>
       <Navbar>
         <Logo />
-        <Search />
+        <Search query={query} setQuery={setQuery} />
         <NumResults movies={movies} />
       </Navbar>
       <Main>
-        {/* <Box tags={<MovieList movies={movies} />} />  another way to pass props */} 
+        {/* <Box tags={<MovieList movies={movies} />} />  another way to pass props */}
         <Box>
-        <MovieList movies={movies} />
+          {isLoading && <Loader />}
+          {!isLoading && !error && <MovieList movies={movies} />}
+          {error && <ErrorMessage message={error} />}
+          {/* {isLoading ? <Loader /> : <MovieList movies={movies} />} */}
         </Box>
         <Box>
-        <WatchedSummary watched={watched} />
+          <WatchedSummary watched={watched} />
           <WatchedMoviesList watched={watched} />
         </Box>
       </Main>
@@ -75,7 +119,19 @@ export default function App() {
   );
 }
 
+function ErrorMessage({ message }) {
+  return (
+    <p className='error'>
+      <span>⛔</span>{message}
+    </p>
+  )
+}
 
+function Loader() {
+  return (
+    <p className="loader">Loading...</p>
+  )
+}
 
 function Navbar({ children }) {
 
@@ -96,8 +152,8 @@ function Logo() {
 }
 
 
-function Search() {
-  const [query, setQuery] = useState("");
+function Search({ query, setQuery }) {
+
   return (
     <input
       className="search"
@@ -140,7 +196,7 @@ function Box({ children }) {
       >
         {isOpen1 ? "–" : "+"}
       </button>
-      {isOpen1 && 
+      {isOpen1 &&
         children
       }
     </div>
