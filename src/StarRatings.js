@@ -17,7 +17,7 @@ StarRatings.propTypes = {  // we use PropTypes to make sure the given input is s
 
 }
 
-export default function StarRatings({ maxRating = 5, color = '#ffc419', size = 48 }) {
+export default function StarRatings({ maxRating = 5, color = '#ffc419', size = 48, selectedData, onAddWatched, onSetRating }) {
     const [rating, setRating] = useState(0)
     const [tempRating, setTempRating] = useState(0)
 
@@ -30,8 +30,8 @@ export default function StarRatings({ maxRating = 5, color = '#ffc419', size = 4
 
     function handleRating(rating) {
         setRating(rating)
+        onSetRating(rating)
     }
-
     return (
         <div style={containerStyle}>
             <div style={containerStarStyle}>
