@@ -84,7 +84,6 @@ export default function App() {
         if (data.Response === 'False')
           throw new Error('Movie not found')
         setMovies(data.Search)
-        console.log(data.Search)
       }
       catch (err) {
         if (err.name !== 'AbortError') {
@@ -224,9 +223,6 @@ function SelectedMovie({ selectedId, handleCloseMovie, onAddWatched, watched }) 
     async function getMovieDetails() {
       setLoading(true)
       let res = await fetch(`http://www.omdbapi.com/?apikey=${key}&i=${selectedId}`)
-      if (!res.ok) {
-        throw new Error('Failed to get movie details')
-      }
       let data = await res.json()
       // console.log(data);
       setSelectedData(data)
@@ -241,7 +237,6 @@ function SelectedMovie({ selectedId, handleCloseMovie, onAddWatched, watched }) 
     function callback (e){
       if (e.code === 'Escape')
         handleCloseMovie()
-      console.log('hola');
     }
     document.addEventListener('keydown', callback)
     return ()=>{document.removeEventListener('keydown', callback)}
