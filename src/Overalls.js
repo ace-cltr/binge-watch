@@ -1,52 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import StarRatings from './StarRatings';
-
-const tempMovieData = [
-  {
-    imdbID: "tt1375666",
-    Title: "Inception",
-    Year: "2010",
-    Poster:
-      "https://m.media-amazon.com/images/M/MV5BMjAxMzY3NjcxNF5BMl5BanBnXkFtZTcwNTI5OTM0Mw@@._V1_SX300.jpg",
-  },
-  {
-    imdbID: "tt0133093",
-    Title: "The Matrix",
-    Year: "1999",
-    Poster:
-      "https://m.media-amazon.com/images/M/MV5BNzQzOTk3OTAtNDQ0Zi00ZTVkLWI0MTEtMDllZjNkYzNjNTc4L2ltYWdlXkEyXkFqcGdeQXVyNjU0OTQ0OTY@._V1_SX300.jpg",
-  },
-  {
-    imdbID: "tt6751668",
-    Title: "Parasite",
-    Year: "2019",
-    Poster:
-      "https://m.media-amazon.com/images/M/MV5BYWZjMjk3ZTItODQ2ZC00NTY5LWE0ZDYtZTI3MjcwN2Q5NTVkXkEyXkFqcGdeQXVyODk4OTc3MTY@._V1_SX300.jpg",
-  },
-];
-
-const tempWatchedData = [
-  {
-    imdbID: "tt1375666",
-    Title: "Inception",
-    Year: "2010",
-    Poster:
-      "https://m.media-amazon.com/images/M/MV5BMjAxMzY3NjcxNF5BMl5BanBnXkFtZTcwNTI5OTM0Mw@@._V1_SX300.jpg",
-    runtime: 148,
-    imdbRating: 8.8,
-    userRating: 10,
-  },
-  {
-    imdbID: "tt0088763",
-    Title: "Back to the Future",
-    Year: "1985",
-    Poster:
-      "https://m.media-amazon.com/images/M/MV5BZmU0M2Y1OGUtZjIxNi00ZjBkLTg1MjgtOWIyNThiZWIwYjRiXkEyXkFqcGdeQXVyMTQxNzMzNDI@._V1_SX300.jpg",
-    runtime: 116,
-    imdbRating: 8.5,
-    userRating: 9,
-  },
-];
+import useFetch from './CustomHooks/useFetch';
+import useLocalStorage from './CustomHooks/useLocalStorage';
+import useKey from './CustomHooks/useKey';
 
 const average = (arr) =>
   arr.reduce((acc, cur, i, arr) => acc + cur / arr.length, 0);
@@ -55,57 +11,31 @@ const key = '891dc1f0'
 
 export default function App() {
   const [query, setQuery] = useState("");
-  const [movies, setMovies] = useState([]);
-  const [watched, setWatched] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('')
   const [selectedId, setSelectedId] = useState(null)
+  // const [watched, setWatched] = useState([]);
+
+  // custom hooks for fetching data and handling error with isLoading state
+  const { movies, isLoading, error } = useFetch(query, handleCloseMovie)
+  const [watched, setWatched] = useLocalStorage([], 'watched')
+
+  // const [watched, setWatched] = useState(function () {
+  //   const storedVal = localStorage.getItem('watched')
+  //   return JSON.parse(storedVal)
+  // }); // we are passing this as a callback function so state will execute it on initial render and the return value will be
+  // // the value stored inside of it
+
+  // useEffect(() => {
+  //   localStorage.setItem('watched', JSON.stringify(watched))
+  // }, [watched])
 
 
   function getId(id) {
     setSelectedId(id === selectedId ? null : id)
   }
 
-  // reder logic can't have data which have to be fetched from outside the component or else it will create a loop of re rendering the component
-  // that's why we use useEffect hook
-
-  // promises are good but don't have await so we wrap our fetch inside async function instead
-  useEffect(function () {
-    async function fetchMovies() {
-      const controller = new AbortController()
-      try {
-        setIsLoading(true);
-        setError('')
-        const res = await fetch(`https://www.omdbapi.com/?apikey=${key}&s=${query}`,
-          { signal: controller.signal })
-        if (!res.ok)
-          throw new Error('oops something went wrong!')
-        const data = await res.json()
-        if (data.Response === 'False')
-          throw new Error('Movie not found')
-        setMovies(data.Search)
-      }
-      catch (err) {
-        if (err.name !== 'AbortError') {
-          setError(err.message);
-        }
-      }
-      finally {
-        setIsLoading(false);
-      }
-    }
-
-    if (query.length < 1) {
-      setMovies([])
-      setError('')
-      return;
-    }
-    handleCloseMovie()
-    fetchMovies()
-  }, [query])
-
   function onAddWatched(movie) {
     setWatched((movies) => [...movies, movie])
+    // localStorage.setItem('watched', JSON.stringify([...watched, movie])) a simple way to store previous data into localstorage 
   }
 
   function handleCloseMovie() {
@@ -183,6 +113,35 @@ function Logo() {
 
 
 function Search({ query, setQuery }) {
+  const inputRef = useRef(null)
+
+
+  useKey('Enter', function () {
+    if (document.activeElement === inputRef.current) return
+    inputRef.current.focus()
+    setQuery('')
+  })
+
+  useEffect(() => {
+    function callback(e) {
+      if (document.activeElement === inputRef.current) return // this will check if input is already focused then it won't execute the effect code below
+
+      if (e.code === 'Enter') {
+        inputRef.current.focus()
+        setQuery('')
+      }
+    }
+    document.addEventListener('keydown', callback)
+
+    inputRef.current.focus()
+
+    return () => document.removeEventListener('keydown', callback)
+
+    // const el = document.querySelector('.search')
+    // el.focus()
+
+  }, [setQuery])
+
 
   return (
     <input
@@ -190,6 +149,7 @@ function Search({ query, setQuery }) {
       type="text"
       placeholder="Search movies..."
       value={query}
+      ref={inputRef}
       onChange={(e) => setQuery(e.target.value)}
     />
   )
@@ -201,6 +161,12 @@ function SelectedMovie({ selectedId, handleCloseMovie, onAddWatched, watched }) 
   const [loading, setLoading] = useState(false);
   const [ratings, setRatings] = useState('')
 
+  const cookies = useRef([])
+  useKey('Escape', handleCloseMovie)
+
+  useEffect(() => {
+    if (ratings) cookies.current.push(ratings)
+  })
 
   const { Title: title,
     Year: year,
@@ -211,7 +177,6 @@ function SelectedMovie({ selectedId, handleCloseMovie, onAddWatched, watched }) 
     Released: released,
     Actors: actors,
     Director: director,
-    Genre: genre,
 
   } = selectedData
 
@@ -232,15 +197,8 @@ function SelectedMovie({ selectedId, handleCloseMovie, onAddWatched, watched }) 
   }, [selectedId]) // why we used selectedId here as dependency :- because it is the unique value that changes every time component mounts
   // not the selectedData.
 
-  
-  useEffect(() => {
-    function callback (e){
-      if (e.code === 'Escape')
-        handleCloseMovie()
-    }
-    document.addEventListener('keydown', callback)
-    return ()=>{document.removeEventListener('keydown', callback)}
-  }, [handleCloseMovie])
+
+
 
   useEffect(() => {
     if (!title) return
@@ -257,6 +215,7 @@ function SelectedMovie({ selectedId, handleCloseMovie, onAddWatched, watched }) 
       imdbRating: Number(imdbRating),
       runtime: Number(runtime.split(' ').at(0)),
       ratings,
+      cookies,
     }
     onAddWatched(selectedMovie)
     handleCloseMovie()
@@ -283,7 +242,7 @@ function SelectedMovie({ selectedId, handleCloseMovie, onAddWatched, watched }) 
             <div className='rating'>
               {isWatched ? <p>You have already rated this movie {watchedUserRating}<span>⭐</span></p> :
                 <>
-                  <StarRatings maxRating={10} size={23} onSetRating={setRatings} />
+                  <StarRatings maxRating={10} size={23} ref={cookies} onSetRating={setRatings} />
                   {ratings > 0 && <button className='btn-add' onClick={handleAdd} >Add to list</button>}
                 </>
               }
